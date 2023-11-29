@@ -8,6 +8,12 @@ use sha3::{
 };
 use sha3::{Sha3_256, Sha3_512, Shake256};
 
+#[cfg(feature = "kem")]
+pub use kem::*;
+
+#[cfg(feature = "kem")]
+mod kem;
+
 /// GenerateKey generates an encapsulation key and a corresponding decapsulation key using the given
 /// RNG.
 ///
