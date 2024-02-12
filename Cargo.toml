@@ -15,7 +15,7 @@ rand_core = { version = "0.6.4", default-features = false }
 sha3 = { version = "0.10.8", default-features = false }
 
 [dev-dependencies]
-divan = "0.1.11"
+criterion = "0.5.1"
 hex-literal = "0.4.1"
 rand_chacha = "0.3.1"
 
