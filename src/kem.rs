@@ -73,7 +73,7 @@ impl EncappedKey for EncapsulatedKey {
 
     fn from_bytes(bytes: &GenericArray<u8, Self::EncappedKeySize>) -> Result<Self, kem::Error> {
         let mut key = EncapsulatedKey { ciphertext: [0u8; 1088] };
-        key.ciphertext.copy_from_slice(bytes);
+        key.ciphertext.copy_from_slice(bytes.as_slice());
         Ok(key)
     }
 }
