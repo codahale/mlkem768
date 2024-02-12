@@ -6,6 +6,7 @@ license = "MIT OR Apache-2.0"
 
 [features]
 default = ["kem", "std"]
+kem = ["dep:kem"]
 std = ["kem?/std", "rand_core/std", "sha3/std"]
 
 [dependencies]
