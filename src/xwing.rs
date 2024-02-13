@@ -56,14 +56,7 @@ fn encapsulate_det(
     ct[..ct_m.len()].copy_from_slice(&ct_m);
     ct[ct_m.len()..].copy_from_slice(ct_x.as_bytes());
 
-    let mut h = Sha3_256::new();
-    h.update(br"\.//^\");
-    h.update(ss_m);
-    h.update(ss_x);
-    h.update(ct_x.as_bytes());
-    h.update(pk_x.as_bytes());
-
-    Some((ct, h.finalize().into()))
+    Some((ct, hash(ss_m, ss_x.to_bytes(), ct_x.as_bytes(), pk_x.as_bytes())))
 }
 
 pub fn decapsulate(sk: &[u8; 2400 + 32 + 32], c: &[u8; 1088 + 32]) -> Option<[u8; 32]> {
@@ -80,13 +73,17 @@ pub fn decapsulate(sk: &[u8; 2400 + 32 + 32], c: &[u8; 1088 + 32]) -> Option<[u8
     let ss_m = crate::decapsulate(&sk_m, &ct_m)?;
     let ss_x = sk_x.diffie_hellman(&ct_x);
 
+    Some(hash(ss_m, ss_x.to_bytes(), ct_x.as_bytes(), pk_x.as_bytes()))
+}
+
+fn hash(ss_m: [u8; 32], ss_x: [u8; 32], ct_x: &[u8; 32], pk_x: &[u8; 32]) -> [u8; 32] {
     let mut h = Sha3_256::new();
     h.update(br"\.//^\");
     h.update(ss_m);
     h.update(ss_x);
-    h.update(ct_x.as_bytes());
-    h.update(pk_x.as_bytes());
-    Some(h.finalize().into())
+    h.update(ct_x);
+    h.update(pk_x);
+    h.finalize().into()
 }
 
 #[cfg(test)]
