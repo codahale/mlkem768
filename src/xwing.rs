@@ -1,7 +1,12 @@
+//! An implementation of the `X-Wing` hybrid post-quantum/classical key encapsulation algorithm.
+
 use rand_core::CryptoRngCore;
 use sha3::{Digest, Sha3_256};
 use x25519_dalek::{PublicKey, StaticSecret};
 
+/// Generates an encapsulation key and a corresponding decapsulation key using the given RNG.
+///
+/// The decapsulation key must be kept secret.
 pub fn key_gen(mut rng: impl CryptoRngCore) -> ([u8; 1184 + 32], [u8; 2400 + 32 + 32]) {
     let (mut d, mut z, mut x) = ([0u8; 32], [0u8; 32], [0u8; 32]);
     rng.fill_bytes(&mut d);
@@ -10,6 +15,8 @@ pub fn key_gen(mut rng: impl CryptoRngCore) -> ([u8; 1184 + 32], [u8; 2400 + 32 
     key_gen_det(d, z, x)
 }
 
+/// Deterministically generates an encapsulation key and corresponding decapsulation key given a
+/// seed value.
 fn key_gen_det(d: [u8; 32], z: [u8; 32], x: [u8; 32]) -> ([u8; 1184 + 32], [u8; 2400 + 32 + 32]) {
     // Derive a ML-KEM-768 key pair.
     let (pk_m, sk_m) = crate::kem_key_gen(d, z);
@@ -32,6 +39,10 @@ fn key_gen_det(d: [u8; 32], z: [u8; 32], x: [u8; 32]) -> ([u8; 1184 + 32], [u8; 
     (pk, sk)
 }
 
+/// Generates a ciphertext and an associated shared key from an encapsulation key and an RNG. If the
+/// encapsulation key is not valid, returns `None`.
+///
+/// The shared key must be kept secret.
 pub fn encapsulate(
     pk: &[u8; 1184 + 32],
     mut rng: impl CryptoRngCore,
@@ -42,6 +53,8 @@ pub fn encapsulate(
     encapsulate_det(pk, m, z)
 }
 
+/// Deterministically generates a ciphertext and associated shared key from an encapsulation key and
+/// a seed value.
 fn encapsulate_det(
     pk: &[u8; 1184 + 32],
     m: [u8; 32],
@@ -69,6 +82,8 @@ fn encapsulate_det(
     Some((ct, hash(ss_m, ss_x.to_bytes(), &pk_e, &pk_x)))
 }
 
+/// Generate a shared key from a decapsulation key and a ciphertext.  If the decapsulation key or
+/// the ciphertext are not valid, returns `None`.
 pub fn decapsulate(sk: &[u8; 2400 + 32 + 32], c: &[u8; 1088 + 32]) -> Option<[u8; 32]> {
     // Decapsulate the ML-KEM-768 ciphertext.
     let ss_m = crate::decapsulate(

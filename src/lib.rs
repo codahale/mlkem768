@@ -1,3 +1,5 @@
+//! An implementation of the `ML-KEM-768` post-quantum key encapsulation algorithm.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use cmov::{Cmov, CmovEq};
@@ -17,8 +19,7 @@ mod kem;
 #[cfg(feature = "xwing")]
 pub mod xwing;
 
-/// GenerateKey generates an encapsulation key and a corresponding decapsulation key using the given
-/// RNG.
+/// Generates an encapsulation key and a corresponding decapsulation key using the given RNG.
 ///
 /// The decapsulation key must be kept secret.
 pub fn key_gen(mut rng: impl CryptoRngCore) -> ([u8; 1184], [u8; 2400]) {
@@ -28,7 +29,7 @@ pub fn key_gen(mut rng: impl CryptoRngCore) -> ([u8; 1184], [u8; 2400]) {
     kem_key_gen(d, z)
 }
 
-/// Generate an encapsulation key and a corresponding decapsulation key.
+/// Generates an encapsulation key and a corresponding decapsulation key.
 ///
 /// It implements ML-KEM.KeyGen according to FIPS 203 (DRAFT), Algorithm 15.
 pub(crate) fn kem_key_gen(d: [u8; 32], z: [u8; 32]) -> ([u8; 1184], [u8; 2400]) {
@@ -44,7 +45,7 @@ pub(crate) fn kem_key_gen(d: [u8; 32], z: [u8; 32]) -> ([u8; 1184], [u8; 2400]) 
     (ek_pke, dk)
 }
 
-/// Generate a ciphertext and an associated shared key from an encapsulation key and an RNG.  If the
+/// Generates a ciphertext and an associated shared key from an encapsulation key and an RNG. If the
 /// encapsulation key is not valid, returns `None`.
 ///
 /// The shared key must be kept secret.
@@ -101,7 +102,7 @@ pub fn decapsulate(dk: &[u8; 2400], c: &[u8; 1088]) -> Option<[u8; 32]> {
     Some(k_out)
 }
 
-/// Generate a key pair for the underlying PKE from a 32-byte random seed.
+/// Generates a key pair for the underlying PKE from a 32-byte random seed.
 ///
 /// It implements K-PKE.KeyGen according to FIPS 203 (DRAFT), Algorithm 12.
 fn pke_keygen(d: [u8; 32]) -> ([u8; 1184], [u8; 1152]) {
@@ -154,7 +155,7 @@ fn pke_keygen(d: [u8; 32]) -> ([u8; 1184], [u8; 1152]) {
     (ek, dk)
 }
 
-/// Encrypt a plaintext message.
+/// Encrypts a plaintext message.
 ///
 /// It implements K-PKE.Encrypt according to FIPS 203 (DRAFT), Algorithm 13.
 fn pke_encrypt(ek: &[u8; 1184], m: [u8; 32], rnd: &[u8]) -> Option<[u8; 1088]> {
@@ -212,7 +213,7 @@ fn pke_encrypt(ek: &[u8; 1184], m: [u8; 32], rnd: &[u8]) -> Option<[u8; 1088]> {
     Some(c)
 }
 
-/// Decrypt a ciphertext.
+/// Decrypts a ciphertext.
 ///
 /// It implements K-PKE.Decrypt according to FIPS 203 (DRAFT), Algorithm 14.
 fn pke_decrypt(dk: &[u8; 1152], c: &[u8; 1088]) -> Option<[u8; 32]> {
