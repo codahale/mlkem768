@@ -11,14 +11,19 @@ pub fn key_gen(mut rng: impl CryptoRngCore) -> ([u8; 1184 + 32], [u8; 2400 + 32 
 }
 
 fn key_gen_det(d: [u8; 32], z: [u8; 32], x: [u8; 32]) -> ([u8; 1184 + 32], [u8; 2400 + 32 + 32]) {
+    // Derive a ML-KEM-768 key pair.
     let (pk_m, sk_m) = crate::kem_key_gen(d, z);
+
+    // Derive an X25519 key pair.
     let sk_x = StaticSecret::from(x);
     let pk_x = PublicKey::from(&sk_x);
 
+    // Concatenate the two public keys.
     let mut pk = [0u8; 1184 + 32];
     pk[..pk_m.len()].copy_from_slice(&pk_m);
     pk[pk_m.len()..].copy_from_slice(pk_x.as_bytes());
 
+    // Concatenate the two private keys along with the X25519 public key.
     let mut sk = [0u8; 2400 + 32 + 32];
     sk[..sk_m.len()].copy_from_slice(&sk_m);
     sk[sk_m.len()..sk_m.len() + 32].copy_from_slice(sk_x.as_bytes());
@@ -42,41 +47,46 @@ fn encapsulate_det(
     m: [u8; 32],
     z: [u8; 32],
 ) -> Option<([u8; 1088 + 32], [u8; 32])> {
-    let pk_m: [u8; 1184] = pk[..1184].try_into().expect("should be 1184 bytes");
-    let pk_x: [u8; 32] = pk[1184..].try_into().expect("should be 32 bytes");
-    let pk_x: PublicKey = pk_x.into();
-
-    let sk_e = StaticSecret::from(z);
-    let ct_x = PublicKey::from(&sk_e);
-
-    let ss_x = sk_e.diffie_hellman(&pk_x);
+    // Encapsulate a key with ML-KEM-768.
+    let pk_m = pk[..1184].try_into().expect("should be 1184 bytes");
     let (ct_m, ss_m) = crate::kem_encapsulate(&pk_m, m)?;
 
+    // Generate an ephemeral X25519 key pair.
+    let sk_e = StaticSecret::from(z);
+    let pk_e = PublicKey::from(&sk_e).to_bytes();
+
+    // Calculate the X25519 ephemeral shared secret.
+    let pk_x: [u8; 32] = pk[1184..].try_into().expect("should be 32 bytes");
+    let ss_x = sk_e.diffie_hellman(&pk_x.into());
+
+    // Concatenate the ML-KEM-768 ciphertext with the X25519 public key.
     let mut ct = [0u8; 1088 + 32];
     ct[..ct_m.len()].copy_from_slice(&ct_m);
-    ct[ct_m.len()..].copy_from_slice(ct_x.as_bytes());
+    ct[ct_m.len()..].copy_from_slice(&pk_e);
 
-    Some((ct, hash(ss_m, ss_x.to_bytes(), ct_x.as_bytes(), pk_x.as_bytes())))
+    // Hash the two shared secrets, the X25519 ephemeral public key, and the X25519 static public
+    // key.
+    Some((ct, hash(ss_m, ss_x.to_bytes(), &pk_e, &pk_x)))
 }
 
 pub fn decapsulate(sk: &[u8; 2400 + 32 + 32], c: &[u8; 1088 + 32]) -> Option<[u8; 32]> {
-    let ct_m: [u8; 1088] = c[..1088].try_into().expect("should be 1088 bytes");
+    // Decapsulate the ML-KEM-768 ciphertext.
+    let ss_m = crate::decapsulate(
+        &sk[..2400].try_into().expect("should be 2400 bytes"),
+        &c[..1088].try_into().expect("should be 1088 bytes"),
+    )?;
+
+    // Calculate the X25519 ephemeral shared secret.
     let ct_x: [u8; 32] = c[1088..].try_into().expect("should be 32 bytes");
-    let ct_x: PublicKey = ct_x.into();
-
-    let sk_m: [u8; 2400] = sk[..2400].try_into().expect("should be 2400 bytes");
     let sk_x: [u8; 32] = sk[2400..2400 + 32].try_into().expect("should be 32 bytes");
-    let sk_x: StaticSecret = sk_x.into();
-    let pk_x: [u8; 32] = sk[2400 + 32..].try_into().expect("should be 32 bytes");
-    let pk_x: PublicKey = pk_x.into();
+    let ss_x = StaticSecret::from(sk_x).diffie_hellman(&ct_x.into());
 
-    let ss_m = crate::decapsulate(&sk_m, &ct_m)?;
-    let ss_x = sk_x.diffie_hellman(&ct_x);
-
-    Some(hash(ss_m, ss_x.to_bytes(), ct_x.as_bytes(), pk_x.as_bytes()))
+    // Hash the two shared secrets, the X25519 ephemeral public key, and the X25519 static public
+    // key.
+    Some(hash(ss_m, ss_x.to_bytes(), &ct_x, &sk[2400 + 32..]))
 }
 
-fn hash(ss_m: [u8; 32], ss_x: [u8; 32], ct_x: &[u8; 32], pk_x: &[u8; 32]) -> [u8; 32] {
+fn hash(ss_m: [u8; 32], ss_x: [u8; 32], ct_x: &[u8], pk_x: &[u8]) -> [u8; 32] {
     let mut h = Sha3_256::new();
     h.update(br"\.//^\");
     h.update(ss_m);
