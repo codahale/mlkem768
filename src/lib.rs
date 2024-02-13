@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use cmov::{Cmov, CmovEq};
-use rand_core::{CryptoRng, RngCore};
+use rand_core::CryptoRngCore;
 use sha3::{
     digest::{ExtendableOutput, FixedOutput, Update, XofReader},
     Shake128,
@@ -14,11 +14,14 @@ pub use kem::*;
 #[cfg(feature = "kem")]
 mod kem;
 
+#[cfg(feature = "xwing")]
+pub mod xwing;
+
 /// GenerateKey generates an encapsulation key and a corresponding decapsulation key using the given
 /// RNG.
 ///
 /// The decapsulation key must be kept secret.
-pub fn key_gen(mut rng: impl RngCore + CryptoRng) -> ([u8; 1184], [u8; 2400]) {
+pub fn key_gen(mut rng: impl CryptoRngCore) -> ([u8; 1184], [u8; 2400]) {
     let (mut d, mut z) = ([0u8; 32], [0u8; 32]);
     rng.fill_bytes(&mut d);
     rng.fill_bytes(&mut z);
@@ -28,7 +31,7 @@ pub fn key_gen(mut rng: impl RngCore + CryptoRng) -> ([u8; 1184], [u8; 2400]) {
 /// Generate an encapsulation key and a corresponding decapsulation key.
 ///
 /// It implements ML-KEM.KeyGen according to FIPS 203 (DRAFT), Algorithm 15.
-fn kem_key_gen(d: [u8; 32], z: [u8; 32]) -> ([u8; 1184], [u8; 2400]) {
+pub(crate) fn kem_key_gen(d: [u8; 32], z: [u8; 32]) -> ([u8; 1184], [u8; 2400]) {
     let (ek_pke, dk_pke) = pke_keygen(d);
 
     let mut dk = [0u8; 2400];
@@ -45,10 +48,7 @@ fn kem_key_gen(d: [u8; 32], z: [u8; 32]) -> ([u8; 1184], [u8; 2400]) {
 /// encapsulation key is not valid, returns `None`.
 ///
 /// The shared key must be kept secret.
-pub fn encapsulate(
-    ek: &[u8; 1184],
-    mut rng: impl RngCore + CryptoRng,
-) -> Option<([u8; 1088], [u8; 32])> {
+pub fn encapsulate(ek: &[u8; 1184], mut rng: impl CryptoRngCore) -> Option<([u8; 1088], [u8; 32])> {
     let mut m = [0u8; 32];
     rng.fill_bytes(&mut m);
     kem_encapsulate(ek, m)
@@ -57,7 +57,7 @@ pub fn encapsulate(
 /// Generate a ciphertext and associated shared key.
 ///
 /// It implements ML-KEM.Encaps according to FIPS 203 (DRAFT), Algorithm 16.
-fn kem_encapsulate(ek: &[u8; 1184], m: [u8; 32]) -> Option<([u8; 1088], [u8; 32])> {
+pub(crate) fn kem_encapsulate(ek: &[u8; 1184], m: [u8; 32]) -> Option<([u8; 1088], [u8; 32])> {
     let mut h = [0u8; 32];
     Sha3_256::default().chain(ek).finalize_into((&mut h).into());
 
