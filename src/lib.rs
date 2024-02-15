@@ -224,7 +224,7 @@ fn pke_decrypt(dk: &[u8; 1152], c: &[u8; 1088]) -> Option<[u8; 32]> {
     }
 
     let c = c.remainder().try_into().expect("should be 128 bytes");
-    let v = ring_decode_and_decompress4(c)?;
+    let v = ring_decode_and_decompress4(c);
 
     let mut s = [[0; N]; K];
     for (s, dk) in s.iter_mut().zip(dk.chunks_exact(384)) {
@@ -431,13 +431,13 @@ fn ring_compress_and_encode4(f: RingElement) -> [u8; 128] {
 ///
 /// It implements ByteDecode₄, according to FIPS 203 (DRAFT), Algorithm 5, followed by Decompress₄,
 /// according to FIPS 203 (DRAFT), Definition 4.6.
-fn ring_decode_and_decompress4(b: [u8; 128]) -> Option<RingElement> {
+fn ring_decode_and_decompress4(b: [u8; 128]) -> RingElement {
     let mut f = [0; N];
     for (f, b) in f.chunks_exact_mut(2).zip(b) {
         f[0] = decompress((b & 0b1111) as u16, 4);
         f[1] = decompress((b >> 4) as u16, 4);
     }
-    Some(f)
+    f
 }
 
 /// Returns a 320-byte encoding of a ring element, compressing four coefficients per five bytes.
