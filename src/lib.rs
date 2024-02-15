@@ -753,4 +753,31 @@ mod tests {
         let k_p = decapsulate(&dk, &c).expect("should decapsulate");
         assert_eq!(k, k_p);
     }
+
+    #[test]
+    fn fuzz_encapsulate_bad_key() {
+        let mut rng = ChaChaRng::seed_from_u64(0xDEADBEEF);
+        bolero::check!().with_type::<[u8; 1184]>().for_each(|ek| {
+            assert_eq!(encapsulate(ek, &mut rng), None);
+        });
+    }
+
+    #[test]
+    fn fuzz_decapsulate_bad_key() {
+        let mut rng = ChaChaRng::seed_from_u64(0xDEADBEEF);
+        let (ek, _) = key_gen(&mut rng);
+        let (ct, _) = encapsulate(&ek, &mut rng).expect("should encapsulate");
+        bolero::check!().with_type::<[u8; 2400]>().for_each(|dk| {
+            assert_eq!(decapsulate(dk, &ct), None);
+        });
+    }
+
+    #[test]
+    fn fuzz_decapsulate_bad_ciphertext() {
+        let mut rng = ChaChaRng::seed_from_u64(0xDEADBEEF);
+        let (_, dk) = key_gen(&mut rng);
+        bolero::check!().with_type::<[u8; 1088]>().for_each(|ct| {
+            assert!(decapsulate(&dk, ct).is_some());
+        });
+    }
 }
