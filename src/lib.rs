@@ -339,7 +339,7 @@ fn decompress(y: u16, d: u8) -> FieldElement {
 type RingElement = [FieldElement; N];
 
 /// Adds two RingElements or NTTElements.
-fn poly_add(a: [FieldElement; N], b: [FieldElement; N]) -> [FieldElement; N] {
+fn poly_add(a: RingElement, b: RingElement) -> RingElement {
     let mut out = [0; N];
     for ((o, a), b) in out.iter_mut().zip(a).zip(b) {
         *o = fe_add(a, b);
@@ -348,7 +348,7 @@ fn poly_add(a: [FieldElement; N], b: [FieldElement; N]) -> [FieldElement; N] {
 }
 
 /// Subtracts two RingElements or NTTElements.
-fn poly_sub(a: [FieldElement; N], b: [FieldElement; N]) -> [FieldElement; N] {
+fn poly_sub(a: RingElement, b: RingElement) -> RingElement {
     let mut out = [0; N];
     for ((o, a), b) in out.iter_mut().zip(a).zip(b) {
         *o = fe_sub(a, b);
@@ -502,7 +502,7 @@ fn sample_poly_cbd(s: &[u8], b: u8) -> RingElement {
 
 /// NTTElement is an NTT representation, an element of T_q, represented as an array according to
 /// FIPS 203 (DRAFT), Section 2.4.
-type NTTElement = [FieldElement; N];
+type NTTElement = RingElement;
 
 /// GAMMAS are the values ζ^2BitRev7(i)+1 mod q for each index i.
 const GAMMAS: [u16; 128] = [
